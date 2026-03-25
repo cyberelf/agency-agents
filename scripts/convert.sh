@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# convert.sh — Convert agency agent .md files into tool-specific formats.
+# convert.sh — Convert agency skills into tool-specific formats.
 #
-# Reads all agent files from the standard category directories and outputs
-# converted files to integrations/<tool>/. Run this to regenerate all
-# integration files after adding or modifying agents.
+# Reads all project-scoped skills from skills/ and outputs converted
+# files to integrations/<tool>/. Run this to regenerate all integration files
+# after adding or modifying skills.
 #
 # Usage:
 #   ./scripts/convert.sh [--tool <name>] [--out <dir>] [--parallel] [--jobs N] [--help]
@@ -60,10 +60,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 OUT_DIR="$REPO_ROOT/integrations"
 TODAY="$(date +%Y-%m-%d)"
 
-AGENT_DIRS=(
-  academic design engineering game-development marketing paid-media sales product project-management
-  testing support spatial-computing specialized
-)
+SKILLS_DIR="$REPO_ROOT/skills"
 
 # --- Usage ---
 usage() {
@@ -97,6 +94,63 @@ get_body() {
   awk 'BEGIN{fm=0} /^---$/{fm++; next} fm>=2{print}' "$1"
 }
 
+copy_skill_resources() {
+  local file="$1" outdir="$2"
+  local skill_dir
+
+  skill_dir="$(dirname "$file")"
+  if [[ -d "$skill_dir/references" ]]; then
+    mkdir -p "$outdir/references"
+    cp -R "$skill_dir/references/." "$outdir/references/"
+  fi
+}
+
+get_conversion_body() {
+  local file="$1"
+  local skill_dir guide
+
+  skill_dir="$(dirname "$file")"
+  guide="$skill_dir/references/guide.md"
+
+  if [[ -f "$guide" ]]; then
+    cat "$guide"
+  else
+    get_body "$file"
+  fi
+}
+
+clean_tool_output() {
+  local tool="$1"
+
+  case "$tool" in
+    antigravity)
+      rm -rf "$OUT_DIR/antigravity"
+      ;;
+    gemini-cli)
+      rm -rf "$OUT_DIR/gemini-cli/skills"
+      rm -f "$OUT_DIR/gemini-cli/gemini-extension.json"
+      ;;
+    opencode)
+      rm -rf "$OUT_DIR/opencode/agents"
+      ;;
+    cursor)
+      rm -rf "$OUT_DIR/cursor/rules"
+      ;;
+    aider)
+      rm -f "$OUT_DIR/aider/CONVENTIONS.md"
+      ;;
+    windsurf)
+      rm -f "$OUT_DIR/windsurf/.windsurfrules"
+      ;;
+    openclaw)
+      rm -rf "$OUT_DIR/openclaw"
+      ;;
+    qwen)
+      rm -rf "$OUT_DIR/qwen/agents"
+      ;;
+  esac
+}
+
 # Convert a human-readable agent name to a lowercase kebab-case slug.
 # "Frontend Developer" → "frontend-developer"
 slugify() {
@@ -117,6 +171,7 @@ convert_antigravity() {
   outdir="$OUT_DIR/antigravity/$slug"
   outfile="$outdir/SKILL.md"
   mkdir -p "$outdir"
+  copy_skill_resources "$file" "$outdir"
 
   # Antigravity SKILL.md format mirrors community skills in ~/.gemini/antigravity/skills/
   cat > "$outfile" <<HEREDOC
@@ -143,6 +198,7 @@ convert_gemini_cli() {
   outdir="$OUT_DIR/gemini-cli/skills/$slug"
   outfile="$outdir/SKILL.md"
   mkdir -p "$outdir"
+  copy_skill_resources "$file" "$outdir"
 
   # Gemini CLI skill format: minimal frontmatter (name + description only)
   cat > "$outfile" <<HEREDOC
@@ -206,7 +262,7 @@ convert_opencode() {
   description="$(get_field "description" "$file")"
   color="$(resolve_opencode_color "$(get_field "color" "$file")")"
   slug="$(slugify "$name")"
-  body="$(get_body "$file")"
+  body="$(get_conversion_body "$file")"
 
   outfile="$OUT_DIR/opencode/agents/${slug}.md"
   mkdir -p "$OUT_DIR/opencode/agents"
@@ -231,7 +287,7 @@ convert_cursor() {
   name="$(get_field "name" "$file")"
   description="$(get_field "description" "$file")"
   slug="$(slugify "$name")"
-  body="$(get_body "$file")"
+  body="$(get_conversion_body "$file")"
 
   outfile="$OUT_DIR/cursor/rules/${slug}.mdc"
   mkdir -p "$OUT_DIR/cursor/rules"
@@ -255,7 +311,7 @@ convert_openclaw() {
   name="$(get_field "name" "$file")"
   description="$(get_field "description" "$file")"
   slug="$(slugify "$name")"
-  body="$(get_body "$file")"
+  body="$(get_conversion_body "$file")"
 
   outdir="$OUT_DIR/openclaw/$slug"
   mkdir -p "$outdir"
@@ -346,7 +402,7 @@ convert_qwen() {
   description="$(get_field "description" "$file")"
   tools="$(get_field "tools" "$file")"
   slug="$(slugify "$name")"
-  body="$(get_body "$file")"
+  body="$(get_conversion_body "$file")"
 
   outfile="$OUT_DIR/qwen/agents/${slug}.md"
   mkdir -p "$(dirname "$outfile")"
@@ -409,7 +465,7 @@ accumulate_aider() {
 
   name="$(get_field "name" "$file")"
   description="$(get_field "description" "$file")"
-  body="$(get_body "$file")"
+  body="$(get_conversion_body "$file")"
 
   cat >> "$AIDER_TMP" <<HEREDOC
 
@@ -429,7 +485,7 @@ accumulate_windsurf() {
 
   name="$(get_field "name" "$file")"
   description="$(get_field "description" "$file")"
-  body="$(get_body "$file")"
+  body="$(get_conversion_body "$file")"
 
   cat >> "$WINDSURF_TMP" <<HEREDOC
 
@@ -449,34 +505,33 @@ run_conversions() {
   local tool="$1"
   local count=0
 
-  for dir in "${AGENT_DIRS[@]}"; do
-    local dirpath="$REPO_ROOT/$dir"
-    [[ -d "$dirpath" ]] || continue
+  [[ -d "$SKILLS_DIR" ]] || {
+    error "Skills directory '$SKILLS_DIR' not found. Run ./scripts/generate-skills.sh first."
+    exit 1
+  }
 
-    while IFS= read -r -d '' file; do
-      # Skip files without frontmatter (non-agent docs like QUICKSTART.md)
-      local first_line
-      first_line="$(head -1 "$file")"
-      [[ "$first_line" == "---" ]] || continue
+  while IFS= read -r -d '' file; do
+    local first_line
+    first_line="$(head -1 "$file")"
+    [[ "$first_line" == "---" ]] || continue
 
-      local name
-      name="$(get_field "name" "$file")"
-      [[ -n "$name" ]] || continue
+    local name
+    name="$(get_field "name" "$file")"
+    [[ -n "$name" ]] || continue
 
-      case "$tool" in
-        antigravity) convert_antigravity "$file" ;;
-        gemini-cli)  convert_gemini_cli  "$file" ;;
-        opencode)    convert_opencode    "$file" ;;
-        cursor)      convert_cursor      "$file" ;;
-        openclaw)    convert_openclaw    "$file" ;;
-        qwen)        convert_qwen        "$file" ;;
-        aider)       accumulate_aider    "$file" ;;
-        windsurf)    accumulate_windsurf "$file" ;;
-      esac
+    case "$tool" in
+      antigravity) convert_antigravity "$file" ;;
+      gemini-cli)  convert_gemini_cli  "$file" ;;
+      opencode)    convert_opencode    "$file" ;;
+      cursor)      convert_cursor      "$file" ;;
+      openclaw)    convert_openclaw    "$file" ;;
+      qwen)        convert_qwen        "$file" ;;
+      aider)       accumulate_aider    "$file" ;;
+      windsurf)    accumulate_windsurf "$file" ;;
+    esac
 
-      (( count++ )) || true
-    done < <(find "$dirpath" -name "*.md" -type f -print0 | sort -z)
-  done
+    (( count++ )) || true
+  done < <(find "$SKILLS_DIR" -mindepth 2 -maxdepth 2 -type f -name 'SKILL.md' -print0 | sort -z)
 
   echo "$count"
 }
@@ -508,7 +563,7 @@ main() {
     exit 1
   fi
 
-  header "The Agency -- Converting agents to tool-specific formats"
+  header "The Agency -- Converting skills to tool-specific formats"
   echo "  Repo:   $REPO_ROOT"
   echo "  Output: $OUT_DIR"
   echo "  Tool:   $tool"
@@ -523,6 +578,11 @@ main() {
   else
     tools_to_run=("$tool")
   fi
+
+  local t
+  for t in "${tools_to_run[@]}"; do
+    clean_tool_output "$t"
+  done
 
   local total=0
 
@@ -550,7 +610,7 @@ main() {
       local count
       count="$(run_conversions "$t")"
       total=$(( total + count ))
-      info "Converted $count agents for $t"
+      info "Converted $count skills for $t"
       (( idx++ )) || true
     done
   else
@@ -576,7 +636,7 @@ HEREDOC
         info "Wrote gemini-extension.json"
       fi
 
-      info "Converted $count agents for $t"
+      info "Converted $count skills for $t"
     done
   fi
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# install.sh -- Install The Agency agents into your local agentic tool(s).
+# install.sh -- Install The Agency skills into your local agentic tool(s).
 #
 # Reads converted files from integrations/ and copies them to the appropriate
 # config directory for each tool. Run scripts/convert.sh first if integrations/
@@ -10,8 +10,8 @@
 #   ./scripts/install.sh [--tool <name>] [--interactive] [--no-interactive] [--parallel] [--jobs N] [--help]
 #
 # Tools:
-#   claude-code  -- Copy agents to ~/.claude/agents/
-#   copilot      -- Copy agents to ~/.github/agents/ and ~/.copilot/agents/
+#   claude-code  -- Copy skills to ~/.claude/skills/
+#   copilot      -- Copy skills to ~/.copilot/skills/
 #   antigravity  -- Copy skills to ~/.gemini/antigravity/skills/
 #   gemini-cli   -- Install extension to ~/.gemini/extensions/agency-agents/
 #   opencode     -- Copy agents to .opencode/agent/ in current directory
@@ -163,7 +163,7 @@ is_detected() {
 tool_label() {
   case "$1" in
     claude-code) printf "%-14s  %s" "Claude Code"  "(claude.ai/code)"        ;;
-    copilot)     printf "%-14s  %s" "Copilot"      "(~/.github + ~/.copilot)" ;;
+    copilot)     printf "%-14s  %s" "Copilot"      "(~/.copilot/skills)" ;;
     antigravity) printf "%-14s  %s" "Antigravity"  "(~/.gemini/antigravity)" ;;
     gemini-cli)  printf "%-14s  %s" "Gemini CLI"   "(gemini extension)"      ;;
     opencode)    printf "%-14s  %s" "OpenCode"     "(opencode.ai)"           ;;
@@ -294,42 +294,35 @@ interactive_select() {
 # ---------------------------------------------------------------------------
 
 install_claude_code() {
-  local dest="${HOME}/.claude/agents"
+  local src="$REPO_ROOT/skills"
+  local dest="${HOME}/.claude/skills"
   local count=0
+  [[ -d "$src" ]] || { err "skills/ missing. Run ./scripts/generate-skills.sh first."; return 1; }
   mkdir -p "$dest"
-  local dir f first_line
-  for dir in academic design engineering game-development marketing paid-media sales product project-management \
-              testing support spatial-computing specialized; do
-    [[ -d "$REPO_ROOT/$dir" ]] || continue
-    while IFS= read -r -d '' f; do
-      first_line="$(head -1 "$f")"
-      [[ "$first_line" == "---" ]] || continue
-      cp "$f" "$dest/"
-      (( count++ )) || true
-    done < <(find "$REPO_ROOT/$dir" -name "*.md" -type f -print0)
-  done
-  ok "Claude Code: $count agents -> $dest"
+  local d
+  while IFS= read -r -d '' d; do
+    local name; name="$(basename "$d")"
+    mkdir -p "$dest/$name"
+    cp -R "$d/." "$dest/$name/"
+    (( count++ )) || true
+  done < <(find "$src" -mindepth 1 -maxdepth 1 -type d -print0)
+  ok "Claude Code: $count skills -> $dest"
 }
 
 install_copilot() {
-  local dest_github="${HOME}/.github/agents"
-  local dest_copilot="${HOME}/.copilot/agents"
+  local src="$REPO_ROOT/skills"
+  local dest_copilot="${HOME}/.copilot/skills"
   local count=0
-  mkdir -p "$dest_github" "$dest_copilot"
-  local dir f first_line
-  for dir in academic design engineering game-development marketing paid-media sales product project-management \
-              testing support spatial-computing specialized; do
-    [[ -d "$REPO_ROOT/$dir" ]] || continue
-    while IFS= read -r -d '' f; do
-      first_line="$(head -1 "$f")"
-      [[ "$first_line" == "---" ]] || continue
-      cp "$f" "$dest_github/"
-      cp "$f" "$dest_copilot/"
-      (( count++ )) || true
-    done < <(find "$REPO_ROOT/$dir" -name "*.md" -type f -print0)
-  done
-  ok "Copilot: $count agents -> $dest_github"
-  ok "Copilot: $count agents -> $dest_copilot"
+  [[ -d "$src" ]] || { err "skills/ missing. Run ./scripts/generate-skills.sh first."; return 1; }
+  mkdir -p "$dest_copilot"
+  local d
+  while IFS= read -r -d '' d; do
+    local name; name="$(basename "$d")"
+    mkdir -p "$dest_copilot/$name"
+    cp -R "$d/." "$dest_copilot/$name/"
+    (( count++ )) || true
+  done < <(find "$src" -mindepth 1 -maxdepth 1 -type d -print0)
+  ok "Copilot: $count skills -> $dest_copilot"
 }
 
 install_antigravity() {
@@ -342,7 +335,7 @@ install_antigravity() {
   while IFS= read -r -d '' d; do
     local name; name="$(basename "$d")"
     mkdir -p "$dest/$name"
-    cp "$d/SKILL.md" "$dest/$name/SKILL.md"
+    cp -R "$d/." "$dest/$name/"
     (( count++ )) || true
   done < <(find "$src" -mindepth 1 -maxdepth 1 -type d -print0)
   ok "Antigravity: $count skills -> $dest"
@@ -363,7 +356,7 @@ install_gemini_cli() {
   while IFS= read -r -d '' d; do
     local name; name="$(basename "$d")"
     mkdir -p "$dest/skills/$name"
-    cp "$d/SKILL.md" "$dest/skills/$name/SKILL.md"
+    cp -R "$d/." "$dest/skills/$name/"
     (( count++ )) || true
   done < <(find "$skills_dir" -mindepth 1 -maxdepth 1 -type d -print0)
   ok "Gemini CLI: $count skills -> $dest"
@@ -567,7 +560,7 @@ main() {
   fi
 
   printf "\n"
-  header "The Agency -- Installing agents"
+  header "The Agency -- Installing skills"
   printf "  Repo:       %s\n" "$REPO_ROOT"
   local n_selected=${#SELECTED_TOOLS[@]}
   printf "  Installing: %s\n" "${SELECTED_TOOLS[*]}"
@@ -606,7 +599,7 @@ main() {
   box_row "${C_GREEN}${C_BOLD}${msg}${C_RESET}"
   box_bot
   printf "\n"
-  dim "  Run ./scripts/convert.sh to regenerate after adding or editing agents."
+  dim "  Run ./scripts/generate-skills.sh and ./scripts/convert.sh to regenerate after adding or editing skills."
   printf "\n"
 }
 

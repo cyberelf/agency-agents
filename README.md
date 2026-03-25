@@ -1,6 +1,6 @@
-# 🎭 The Agency: AI Specialists Ready to Transform Your Workflow
+# 🎭 The Agency: AI Skills Ready to Transform Your Workflow
 
-> **A complete AI agency at your fingertips** - From frontend wizards to Reddit community ninjas, from whimsy injectors to reality checkers. Each agent is a specialized expert with personality, processes, and proven deliverables.
+> **A complete AI skill catalog at your fingertips** - From frontend wizards to Reddit community ninjas, from whimsy injectors to reality checkers. Each skill packages a specialized workflow, detailed reference material, and proven deliverables.
 
 [![GitHub stars](https://img.shields.io/github/stars/msitarzewski/agency-agents?style=social)](https://github.com/msitarzewski/agency-agents)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -11,10 +11,10 @@
 
 ## 🚀 What Is This?
 
-Born from a Reddit thread and months of iteration, **The Agency** is a growing collection of meticulously crafted AI agent personalities. Each agent is:
+Born from a Reddit thread and months of iteration, **The Agency** is a growing collection of meticulously crafted AI skills. Each skill is:
 
-- **🎯 Specialized**: Deep expertise in their domain (not generic prompt templates)
-- **🧠 Personality-Driven**: Unique voice, communication style, and approach
+- **🎯 Specialized**: Deep expertise in a clear domain or workflow
+- **🧠 Reference-Backed**: Small `SKILL.md` entrypoints backed by detailed guides and playbooks
 - **📋 Deliverable-Focused**: Real code, processes, and measurable outcomes
 - **✅ Production-Ready**: Battle-tested workflows and success metrics
 
@@ -24,7 +24,29 @@ Born from a Reddit thread and months of iteration, **The Agency** is a growing c
 
 ## ⚡ Quick Start
 
-### Option 1: Use with Claude Code (Recommended)
+### Option 1: Use the Project-Scoped Skills (Recommended)
+
+The repo now publishes project-scoped skills in [skills](skills). The structure is team-oriented and rooted at the repo top level:
+- one team skill per capability area such as `engineering`, `design`, `marketing`, or `strategy`
+- `SKILL.md` as the discovery and entrypoint file for that team
+- `references/` for the converted specialist guides and supporting documents from that folder
+
+Validate the skill catalog before publishing or installing updates:
+
+```bash
+./scripts/validate-skills.sh
+```
+
+Examples:
+
+```bash
+# Copy the skills into a personal skills directory if you want to use them globally
+cp -r skills/* ~/.copilot/skills/
+cp -r skills/* ~/.claude/skills/
+cp -r skills/* ~/.agents/skills/
+```
+
+### Option 2: Use with Claude Code Legacy Agent Mode
 
 ```bash
 # Copy agents to your Claude Code directory
@@ -34,17 +56,16 @@ cp -r agency-agents/* ~/.claude/agents/
 # "Hey Claude, activate Frontend Developer mode and help me build a React component"
 ```
 
-### Option 2: Use as Reference
+### Option 3: Use as Reference
 
-Each agent file contains:
-- Identity & personality traits
-- Core mission & workflows
-- Technical deliverables with code examples
-- Success metrics & communication style
+Each skill folder contains:
+- A `SKILL.md` entrypoint
+- Converted reference guides under `references/`
+- Detailed workflows, deliverables, and quality criteria
 
-Browse the agents below and copy/adapt the ones you need!
+Browse the skills below and copy/adapt the ones you need.
 
-### Option 3: Use with Other Tools (Cursor, Aider, Windsurf, Gemini CLI, OpenCode)
+### Option 4: Use with Other Tools (Cursor, Aider, Windsurf, Gemini CLI, OpenCode)
 
 ```bash
 # Step 1 -- generate integration files for all supported tools
@@ -61,6 +82,10 @@ Browse the agents below and copy/adapt the ones you need!
 ```
 
 See the [Multi-Tool Integrations](#-multi-tool-integrations) section below for full details.
+
+## Skill Source of Truth
+
+The canonical source of truth is now [skills](skills). Each top-level skill folder is a standalone team skill, and its `references/` directory contains the specialist materials that skill can route across.
 
 ---
 
